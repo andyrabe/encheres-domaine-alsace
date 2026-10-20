@@ -1,0 +1,45 @@
+# À chaque envoi sur main : tests, construction de l'appli, puis publication
+# sur GitHub Pages si le dépôt est public (ou si la variable PUBLIER_SUR_PAGES vaut "oui").
+name: Tests et publication
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: tests-et-publication
+  cancel-in-progress: true
+
+jobs:
+  verification:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  publication:
+    needs: verification
+    if: github.event.repository.private == false || vars.PUBLIER_SUR_PAGES == 'oui'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - id: deploiement
+        uses: actions/deploy-pages@v4
